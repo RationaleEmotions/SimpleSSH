@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="Unit-test-suite" verbose="2">
+    <test name="unit-tests">
+        <classes>
+            <class name="com.rationaleemotions.SshKnowHowTest"/>
+        </classes>
+    </test>
+
+</suite>
