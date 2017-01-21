@@ -12,7 +12,7 @@ import static com.rationaleemotions.utils.Preconditions.checkArgument;
  */
 public class ExecutionBuilder {
 
-    private SSHUser sshUser = new SSHUser();
+    private SSHUser sshUser;
     private SSHHost host = new SSHHost();
     private Shells shell = Shells.BASH;
 
@@ -88,6 +88,9 @@ public class ExecutionBuilder {
     public SshKnowHow build() {
         boolean validHost = ((host.getHostname() != null) && (! host.getHostname().trim().isEmpty()));
         checkArgument(validHost, "Please provide a valid hostname.");
+        if (sshUser == null) {
+            sshUser = new SSHUser();
+        }
         return JSchBackedSshKnowHowImpl.newInstance(host, sshUser, shell);
     }
 }

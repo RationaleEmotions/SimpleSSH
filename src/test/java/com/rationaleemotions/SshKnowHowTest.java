@@ -2,6 +2,7 @@ package com.rationaleemotions;
 
 import com.rationaleemotions.pojo.EnvVariable;
 import com.rationaleemotions.pojo.ExecResults;
+import com.rationaleemotions.pojo.SSHUser;
 import com.rationaleemotions.pojo.Shells;
 import com.rationaleemotions.server.FakeCommandFactory;
 import com.rationaleemotions.server.LocalServer;
@@ -27,7 +28,9 @@ public class SshKnowHowTest {
         LocalServer server = new LocalServer();
         server.startServer();
         ExecutionBuilder builder = new ExecutionBuilder();
-        ssh = builder.connectTo(LocalServer.LOCALHOST).includeHostKeyChecks(false).onPort(server.port).build();
+        SSHUser user = new SSHUser(System.getProperty("user.name"), new File("src/test/resources/.ssh"));
+        ssh = builder.connectTo(LocalServer.LOCALHOST).includeHostKeyChecks(false).onPort(server.port)
+            .usingUserInfo(user).build();
     }
 
     @Test
