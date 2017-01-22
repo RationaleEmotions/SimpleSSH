@@ -7,6 +7,11 @@ import com.jcraft.jsch.Session;
 import com.rationaleemotions.pojo.*;
 import com.rationaleemotions.utils.Preconditions;
 import com.rationaleemotions.utils.StreamGuzzler;
+import org.apache.commons.vfs2.*;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
+import org.apache.commons.vfs2.provider.sftp.SftpFileObject;
+import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +27,9 @@ import java.util.concurrent.*;
  * A JSch backed implementation of {@link SshKnowHow}
  */
 class JSchBackedSshKnowHowImpl implements SshKnowHow {
-    interface Marker {}
+    interface Marker {
+    }
+
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Marker.class.getEnclosingClass());
 
@@ -32,11 +39,14 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     private Shells shell;
     private String userHomeOnRemoteHost;
     private Session session;
+    private String connectionString;
+    private FileSystemOptions options;
 
     private JSchBackedSshKnowHowImpl(SSHHost host, SSHUser user, Shells shell) {
         this.hostInfo = host;
         this.userInfo = user;
         this.shell = shell;
+        this.connectionString = String.format("sftp://%s@%s:%d", user.getUserName(), host.getHostname(), host.getPort());
     }
 
     static SshKnowHow newInstance(SSHHost host, SSHUser user, Shells shell) {
@@ -45,8 +55,6 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
         Runtime.getRuntime().addShutdownHook(new Thread(new SessionCleaner(instance.session)));
         return instance;
     }
-
-
 
     @Override
     public ExecResults executeCommand(String cmd) {
@@ -168,13 +176,13 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     }
 
     @Override
-    public ExecResults uploadDirectory(String remoteLocation, File... localDirs) {
-        return null;
+    public ExecResults uploadDirectory(File localFrom, String remoteTo) {
+        return copyDirectory(true, localFrom.getAbsolutePath(), remoteTo);
     }
 
     @Override
-    public ExecResults downloadDirectory(File localLocation, String... remoteDirs) {
-        return null;
+    public ExecResults downloadDirectory(File localTo, String remoteFrom) {
+        return copyDirectory(false, localTo.getAbsolutePath(), remoteFrom);
     }
 
     private Session getSession() throws JSchException {
@@ -195,7 +203,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             session = jSch.getSession(userInfo.getUserName(), hostInfo.getHostname(), hostInfo.getPort());
             Long timeout = TimeUnit.SECONDS.toMillis(hostInfo.getTimeoutSeconds());
             session.setTimeout(timeout.intValue());
-            session.setUserInfo(new PasswordlessEnabledUser());
+            session.setUserInfo(new PasswordlessEnabledUser(userInfo.getPassphrase()));
             session.connect();
             return session;
         } catch (JSchException e) {
@@ -273,5 +281,74 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             text = results.getOutput().get(0);
         }
         return FileStatOutput.parse(text);
+    }
+
+    private FileSystemOptions getOptions() throws FileSystemException {
+        if (options != null) {
+            return options;
+        }
+        options = new FileSystemOptions();
+        SftpFileSystemConfigBuilder builder = SftpFileSystemConfigBuilder.getInstance();
+        builder.setStrictHostKeyChecking(options, "no");
+        IdentityInfo identityInfo;
+        if (userInfo.getPassphrase() != null && ! userInfo.getPassphrase().trim().isEmpty()) {
+            identityInfo = new IdentityInfo(userInfo.privateKeyLocation(), userInfo.getPassphrase().getBytes());
+        } else {
+            identityInfo = new IdentityInfo(userInfo.privateKeyLocation());
+        }
+        builder.setIdentityInfo(options, identityInfo);
+        builder.setTimeout(options, this.hostInfo.getTimeoutSeconds());
+        builder.setUserDirIsRoot(options, false);
+        return options;
+    }
+
+    private ExecResults copyDirectory(boolean upload, String sourceLocation, String targetLocation) {
+        int rc = - 1;
+        StandardFileSystemManager manager = new StandardFileSystemManager();
+        String remoteDirToUse = fixRemoteLocation(targetLocation);
+        List<String> errors = new ArrayList<>();
+
+        try {
+            manager.init();
+            SftpFileObject fObject = (SftpFileObject) manager.resolveFile(connectionString, getOptions());
+            String localDirTouse;
+            if (upload) {
+                FileObject source = manager.resolveFile((new File(sourceLocation)).getAbsolutePath());
+                localDirTouse = remoteDirToUse + "/" + source.getName().getBaseName();
+                SftpFileObject destination = (SftpFileObject) fObject.resolveFile(localDirTouse, NameScope.FILE_SYSTEM);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Source :" + source.getPublicURIString());
+                    LOGGER.debug("Destination :" + destination.getPublicURIString());
+                }
+                destination.createFolder();
+                destination.copyFrom(source, Selectors.SELECT_ALL);
+            } else {
+                SftpFileObject source = (SftpFileObject) fObject.resolveFile(remoteDirToUse, NameScope.FILE_SYSTEM);
+                localDirTouse = sourceLocation + File.separator + source.getName().getBaseName();
+                File file = new File(localDirTouse);
+                FileObject destination = manager.resolveFile(file.getAbsolutePath());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Source :" + source.getPublicURIString());
+                    LOGGER.debug("Destination :" + destination.getPublicURIString());
+                }
+                destination.createFolder();
+                destination.copyFrom(source, Selectors.SELECT_ALL);
+            }
+            rc = 0;
+        } catch (FileSystemException e) {
+            errors.add(e.getMessage());
+            if (LOGGER.isDebugEnabled()) {
+                String msg;
+                if (upload) {
+                    msg = String.format("Failed %s %s to %s", "uploading", sourceLocation, targetLocation);
+                } else {
+                    msg = String.format("Failed %s %s to %s", "downloading", targetLocation, sourceLocation);
+                }
+                LOGGER.debug(msg, e);
+            }
+        } finally {
+            manager.close();
+        }
+        return new ExecResults(new ArrayList<>(), errors, rc);
     }
 }

@@ -28,7 +28,8 @@ public class SshKnowHowTest {
         LocalServer server = new LocalServer();
         server.startServer();
         ExecutionBuilder builder = new ExecutionBuilder();
-        SSHUser user = new SSHUser(System.getProperty("user.name"), new File("src/test/resources/.ssh"));
+
+        SSHUser user = new SSHUser.Builder().withSshFolder(new File("src/test/resources/.ssh")).build();
         ssh = builder.connectTo(LocalServer.LOCALHOST).includeHostKeyChecks(false).onPort(server.port)
             .usingUserInfo(user).build();
     }
@@ -87,9 +88,9 @@ public class SshKnowHowTest {
         EnvVariable env = new EnvVariable("foo", "bar");
         ExecResults results = ssh.executeCommand(CMD, MYDIRECTORY, env);
         String exp = expectedString(CMD, MYDIRECTORY, Shells.BASH, env);
+        Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
         Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
-        Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
     }
 
     @Test
@@ -140,6 +141,31 @@ public class SshKnowHowTest {
             Assert.assertEquals(getContents(actual), getContents(expected),
                 "Validating contents of " + actual.getAbsolutePath());
         }
+    }
+
+    @Test
+    public void testUploadDirectory() {
+        ExecResults results =
+            ssh.uploadDirectory(new File("src/test/resources/upload"), "~/target/");
+        Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
+        File uploadedDir = new File(LocalServer.HOME + File.separator + "target" + File.separator + "upload");
+        Assert.assertTrue(uploadedDir.exists(), "Validating the existence of uploaded artifact");
+        Assert.assertTrue(uploadedDir.isDirectory(), "Validating the uploaded artifact.");
+        File[] files = uploadedDir.listFiles();
+        Assert.assertNotNull(files, "Validating the items in the uploaded folder.");
+        Assert.assertEquals(files.length, 1, "Validating the contents of the uploaded folder.");
+    }
+
+    @Test
+    public void testDownloadDirectory() {
+        ExecResults results = ssh.downloadDirectory(new File(LocalServer.TARGET), "~/src/test/resources/download");
+        Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
+        File downloadedDir = new File(LocalServer.TARGET + File.separator + "download");
+        Assert.assertTrue(downloadedDir.exists(), "Validating the existence of downloaded artifact");
+        Assert.assertTrue(downloadedDir.isDirectory(), "Validating the downloaded artifact.");
+        File[] files = downloadedDir.listFiles();
+        Assert.assertNotNull(files, "Validating the items in the downloaded folder.");
+        Assert.assertEquals(files.length, 1, "Validating the contents of the downloaded folder.");
     }
 
     private String getContents(File file) throws IOException {

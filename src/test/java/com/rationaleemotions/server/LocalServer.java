@@ -24,13 +24,13 @@ public class LocalServer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Marker.class.getEnclosingClass());
     public static final String LOCALHOST = "localhost";
-    static final String HOME = System.getProperty("user.dir");
+    public static final String HOME = System.getProperty("user.dir");
     public static final String TARGET = HOME + File.separator + "target" + File.separator
         + "destination" + File.separator;
     public int port;
 
     static {
-        assert new File(TARGET).mkdirs();
+        new File(TARGET).mkdirs();
     }
 
     public void startServer() throws IOException {
@@ -41,6 +41,7 @@ public class LocalServer {
         SimpleGeneratorHostKeyProvider provider = new SimpleGeneratorHostKeyProvider();
         sshd.setKeyPairProvider(provider);
         SftpSubsystemFactory.Builder builder = new SftpSubsystemFactory.Builder();
+
         SftpSubsystemFactory sftpFactory = builder.build();
         sshd.setSubsystemFactories(new ArrayList<NamedFactory<Command>>() {
             {

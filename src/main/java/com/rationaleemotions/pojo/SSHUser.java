@@ -15,54 +15,10 @@ public class SSHUser {
     private String userName;
     private File sshFolder;
     private File privateKey;
+    private String passphrase;
 
-    /**
-     * Creates a {@link SSHUser} object for the currently logged in user.
-     * Here are the assumptions that is made here :
-     * <ol>
-     * <li>User name - The currently logged-in user as identified via the Java property <b>user.name</b></li>
-     * <li>User's home directory - The home directory of the currently logged-in user as identified via the
-     * Java property <b>user.home</b></li>
-     * </ol>
-     */
-    public SSHUser() {
-        this(System.getProperty(USER_NAME));
-    }
-
-    /**
-     * Creates a {@link SSHUser} object for a user that is different from the currently logged in user.
-     * Here are the assumptions that is made here :
-     * <ol>
-     * <li>User's home directory - The home directory is calculated relatively to the home directory of the
-     * currently
-     * logged in user. For e.g., if the current logged in user's home directory is <b>/home/ram</b> and if the
-     * user for whom ssh is being attempted at <b>krishna</b> then the home directory is calculated as
-     * <b>/home/krishna</b></li>
-     * </ol>
-     *
-     * @param userName - The user for whom ssh is being attempted.
-     */
-    public SSHUser(String userName) {
-        this(userName, locateSshFolderFolder(userName));
-    }
-
-    /**
-     * @param userName  - The username for whom ssh is being attempted.
-     * @param sshFolder - The location of the <b>.ssh</b> folder.
-     */
-    public SSHUser(String userName, File sshFolder) {
-        this(userName, sshFolder, constructLocationFrom(sshFolder));
-    }
-
-    /**
-     * @param userName   - The username for whom ssh is being attempted.
-     * @param sshFolder  - The location of the <b>.ssh</b> folder.
-     * @param privateKey - The location of the private key (either <b>id_rsa</b> (or) <b>id_dsa</b> )
-     */
-    public SSHUser(String userName, File sshFolder, File privateKey) {
-        this.userName = userName;
-        this.sshFolder = sshFolder;
-        this.privateKey = privateKey;
+    private SSHUser() {
+        //We have a builder to construct this object. So hide the constructor.
     }
 
     /**
@@ -97,29 +53,112 @@ public class SSHUser {
         return sshFolder.getAbsolutePath() + File.separator + "known_hosts";
     }
 
-    private static File locateSshFolderFolder(String userName) {
-        String currentuser = System.getProperty(USER_NAME);
-        if (currentuser.equalsIgnoreCase(userName)) {
-            return new File(System.getProperty(USER_HOME) + File.separator + SSH);
-        }
-        File file = new File(System.getProperty(USER_HOME));
-        String raw = file.getParentFile().getAbsolutePath() + File.separator + userName + File.separator + SSH;
-        return new File(raw);
+    public String getPassphrase() {
+        return passphrase;
     }
 
-    private static File constructLocationFrom(File home) {
-        Preconditions.checkArgument(home != null, "Home directory cannot be null.");
-        Preconditions.checkArgument(home.exists(), String.format("Home directory [%s] does not exist.", home.getAbsolutePath()));
-        Preconditions.checkArgument(home.isDirectory(), String.format("Home directory [%s] is not a directory", home.getAbsolutePath()));
+    /**
+     * Creates a {@link SSHUser} object for the currently logged in user.
+     * Here are the assumptions that is made here :
+     * <ol>
+     * <li>User name - The currently logged-in user as identified via the Java property <b>user.name</b></li>
+     * <li>User's home directory - The home directory of the currently logged-in user as identified via the
+     * Java property <b>user.home</b></li>
+     * </ol>
+     */
+    public static class Builder {
+        private SSHUser user;
 
-        File file = new File(home, "id_dsa");
-        if (file.exists()) {
-            return file;
+        public Builder() {
+            user = new SSHUser();
         }
-        file = new File(home, "id_rsa");
-        if (file.exists()) {
-            return file;
+
+        /**
+         * Creates a {@link SSHUser} object for a user that is different from the currently logged in user.
+         * Here are the assumptions that is made here :
+         * <ol>
+         * <li>User's home directory - The home directory is calculated relatively to the home directory of the
+         * currently
+         * logged in user. For e.g., if the current logged in user's home directory is <b>/home/ram</b> and if the
+         * user for whom ssh is being attempted at <b>krishna</b> then the home directory is calculated as
+         * <b>/home/krishna</b></li>
+         * </ol>
+         *
+         * @param user - The user for whom ssh is being attempted.
+         */
+        public Builder forUser(String user) {
+            this.user.userName = user;
+            return this;
         }
-        throw new IllegalStateException("No private keys [id_dsa/id_rsa] found in [" + home.getAbsolutePath() + "]");
+
+        /**
+         * @param sshFolder - The location of the <b>.ssh</b> folder.
+         */
+        public Builder withSshFolder(File sshFolder) {
+            this.user.sshFolder = sshFolder;
+            return this;
+        }
+
+        /**
+         * @param privateKey - The location of the private key (either <b>id_rsa</b> (or) <b>id_dsa</b> )
+         */
+        public Builder usingPrivateKey(File privateKey) {
+            this.user.privateKey = privateKey;
+            return this;
+        }
+
+        /**
+         * @param passphrase - A passphrase if applicable that is to be used to access the private keys.
+         */
+        public Builder usingPassphrase(String passphrase) {
+            this.user.passphrase = passphrase;
+            return this;
+        }
+
+        public SSHUser build() {
+            if (user.userName == null || user.userName.trim().isEmpty()) {
+                user.userName = System.getProperty(USER_NAME);
+            }
+            if (user.sshFolder == null) {
+                user.sshFolder = locateSshFolderFolder(user.userName);
+            }
+            if (user.privateKey == null) {
+                user.privateKey = constructLocationFrom(user.sshFolder);
+            }
+            return this.user;
+        }
+
+        private static File locateSshFolderFolder(String userName) {
+            String currentuser = System.getProperty(USER_NAME);
+            if (currentuser.equalsIgnoreCase(userName)) {
+                return new File(System.getProperty(USER_HOME) + File.separator + SSH);
+            }
+            File file = new File(System.getProperty(USER_HOME));
+            String raw = file.getParentFile().getAbsolutePath() + File.separator + userName + File.separator + SSH;
+            return new File(raw);
+        }
+
+        private static File constructLocationFrom(File home) {
+            Preconditions.checkArgument(home != null, "Home directory cannot be null.");
+            Preconditions
+                .checkArgument(home.exists(),
+                    String.format("Home directory [%s] does not exist.", home.getAbsolutePath()));
+            Preconditions.checkArgument(home.isDirectory(),
+                String.format("Home directory [%s] is not a directory", home.getAbsolutePath()));
+
+            File file = new File(home, "id_dsa");
+            if (file.exists()) {
+                return file;
+            }
+            file = new File(home, "id_rsa");
+            if (file.exists()) {
+                return file;
+            }
+            throw new IllegalStateException(
+                "No private keys [id_dsa/id_rsa] found in [" + home.getAbsolutePath() + "]");
+        }
     }
+
+
+
 }

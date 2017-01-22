@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * A worker that cleans sessions via {@link Runtime#addShutdownHook(Thread)}
  */
 class SessionCleaner implements Runnable {
     interface Marker {}

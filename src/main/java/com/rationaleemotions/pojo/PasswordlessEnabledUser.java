@@ -11,9 +11,14 @@ import com.jcraft.jsch.UserInfo;
  * to a remote host.
  */
 public class PasswordlessEnabledUser implements UserInfo {
+    private String passphrase;
+
+    public PasswordlessEnabledUser(String passphrase) {
+        this.passphrase = passphrase;
+    }
     @Override
     public String getPassphrase() {
-        return null;
+        return passphrase;
     }
 
     @Override
@@ -28,7 +33,7 @@ public class PasswordlessEnabledUser implements UserInfo {
 
     @Override
     public boolean promptPassphrase(String message) {
-        return false;
+        return passphrase != null;
     }
 
     @Override
@@ -38,6 +43,6 @@ public class PasswordlessEnabledUser implements UserInfo {
 
     @Override
     public void showMessage(String message) {
-
+        //No Op implementation
     }
 }

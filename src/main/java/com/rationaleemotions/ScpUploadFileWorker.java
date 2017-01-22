@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 
 /**
- *
+ * A Worker that is capable of uploading a file to a remote host.
  */
 class ScpUploadFileWorker implements Callable<ExecResults> {
     interface Marker {}

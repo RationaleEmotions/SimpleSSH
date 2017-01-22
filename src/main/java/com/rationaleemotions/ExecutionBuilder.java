@@ -39,7 +39,7 @@ public class ExecutionBuilder {
      * @return - The {@link ExecutionBuilder} object that is being constructed.
      */
     public ExecutionBuilder asUser(String userName) {
-        sshUser = new SSHUser(userName);
+        sshUser = new SSHUser.Builder().forUser(userName).build();
         return this;
     }
 
@@ -89,7 +89,7 @@ public class ExecutionBuilder {
         boolean validHost = ((host.getHostname() != null) && (! host.getHostname().trim().isEmpty()));
         checkArgument(validHost, "Please provide a valid hostname.");
         if (sshUser == null) {
-            sshUser = new SSHUser();
+            sshUser = new SSHUser.Builder().build();
         }
         return JSchBackedSshKnowHowImpl.newInstance(host, sshUser, shell);
     }

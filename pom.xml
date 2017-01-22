@@ -53,6 +53,14 @@
             <version>1.7.5</version>
         </dependency>
 
+        <!--Required for supporting folder uploads and downloads -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-vfs2</artifactId>
+            <version>2.1</version>
+        </dependency>
+
+
         <!--All the test scoped dependencies are found below -->
         <!--TestNG is required because its our test runner -->
         <dependency>

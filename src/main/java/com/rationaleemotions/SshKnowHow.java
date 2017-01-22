@@ -58,7 +58,17 @@ public interface SshKnowHow {
      */
     String getHomeDirectory();
 
-    ExecResults downloadDirectory(File localLocation, String... remoteDirs);
+    /**
+     * @param localTo    - The {@link File} location to where contents are to be downloaded.
+     * @param remoteFrom - The remote folder that needs to be downloaded.
+     * @return - A {@link ExecResults} object that represents the download results.
+     */
+    ExecResults downloadDirectory(File localTo, String remoteFrom);
 
-    ExecResults uploadDirectory(String remoteLocation, File... localDirs);
+    /**
+     * @param localFrom - The {@link File} location from where contents are to be uploaded.
+     * @param remoteTo  - The remote folder to which contents are to be uploaded.
+     * @return - A {@link ExecResults} object that represents the download results.
+     */
+    ExecResults uploadDirectory(File localFrom, String remoteTo);
 }
