@@ -2,6 +2,7 @@ package com.rationaleemotions;
 
 import com.rationaleemotions.pojo.EnvVariable;
 import com.rationaleemotions.pojo.ExecResults;
+import com.rationaleemotions.pojo.SSHHost;
 
 import java.io.File;
 
@@ -71,4 +72,14 @@ public interface SshKnowHow {
      * @return - A {@link ExecResults} object that represents the download results.
      */
     ExecResults uploadDirectory(File localFrom, String remoteTo);
+
+    /**
+     * Helps close out the ssh connection with the remote host.
+     */
+    void closeConnections();
+
+    /**
+     * @param tunnelHost - The {@link SSHHost} object to which we need to enable port forwarding to.
+     */
+    void enableTunnellingTo(SSHHost tunnelHost);
 }

@@ -25,7 +25,7 @@ consume it, you merely need to add the following as a dependency in your pom fil
 <dependency>
     <groupId>com.rationaleemotions</groupId>
     <artifactId>simple-ssh</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
@@ -141,4 +141,40 @@ Here's how to perform downloading a folder from a Remote UNIX Host: (Here we are
 
 ```java
 ExecResults results = ssh.downloadDirectory(new File("src/test/resources"), "~/download");
+```
+
+### How to do SSH tunnelling
+
+Here's how you can resort to performing SSH tunnelling:
+
+```java
+//Lets say we first need to ssh "centos.somedomain" and only from "centos.somedomain" can we ssh into "ubuntu.anotherdomain" machine
+//Here's how it can be done.
+String centos = "centos.somedomain"; //First target
+String ubuntu = "ubuntu.anotherdomain"; //The machine to which we would like port forwarding to be carried out
+SshKnowHow ssh = new ExecutionBuilder().connectTo(centos).build();
+SSHHost tunnelHost = new SSHHost();
+tunnelHost.setHostname(ubuntu);
+int fwdedPort = findRandomOpenPortOnAllLocalInterfaces();
+tunnelHost.setPort(fwdedPort);
+ssh.enableTunnellingTo(tunnelHost);
+SshKnowHow anotherSsh = new ExecutionBuilder().connectTo("localhost").onPort(fwdedPort).build();
+ExecResults results = anotherSsh.executeCommand("ls -ltr"); //This will be executed on "ubuntu.anotherdomain"
+
+//One sample way of figuring out a random free port locally can be as below
+int findRandomOpenPortOnAllLocalInterfaces() throws IOException {
+    try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+        return socket.getLocalPort();
+    }
+}
+```
+
+### Explicit closing of connections
+
+If you are using this library in scenarios that doesn't involve a TestRunner such as **TestNG** (or) **JUnit** but resort to consuming this library via a `main()` method, then there can be chances that the program does not exit. This is mainly due to the fact that behind the scenes the **JSch** library (which is what is being used as the ssh backbone) does not kill its background threads until the connections are explicitly closed. That can be done by invoking :
+```java
+SshKnowHow ssh = new ExecutionBuilder().connectTo(centos).build();
+//ssh operations related code goes here.
+//finally before we end the program lets close the connections
+ssh.closeConnections();
 ```

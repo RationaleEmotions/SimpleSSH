@@ -176,6 +176,11 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     }
 
     @Override
+    public void closeConnections() {
+        new SessionCleaner(session).run();
+    }
+
+    @Override
     public ExecResults uploadDirectory(File localFrom, String remoteTo) {
         return copyDirectory(true, localFrom.getAbsolutePath(), remoteTo);
     }
@@ -185,13 +190,20 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
         return copyDirectory(false, localTo.getAbsolutePath(), remoteFrom);
     }
 
-    private Session getSession() throws JSchException {
-        if (session != null) {
-            if (! session.isConnected()) {
-                session.connect();
-            }
-            return session;
+    @Override
+    public void enableTunnellingTo(SSHHost tunnelHost) { // Refer http://stackoverflow.com/a/28852678
+        try {
+            newSession();
+            session.setPortForwardingL(tunnelHost.getPort(), tunnelHost.getHostname(), this.hostInfo.getPort());
+            session.connect();
+            //Refer http://epaul.github.io/jsch-documentation/javadoc/com/jcraft/jsch/Session.html#openChannel-java.lang.String-
+            session.openChannel("direct-tcpip");
+        } catch(JSchException e) {
+            throw new ExecutionFailedException(e);
         }
+    }
+
+    private Session newSession() throws JSchException {
         JSch jSch = new JSch();
         try {
             if (hostInfo.isDoHostKeyChecks()) {
@@ -204,12 +216,25 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             Long timeout = TimeUnit.SECONDS.toMillis(hostInfo.getTimeoutSeconds());
             session.setTimeout(timeout.intValue());
             session.setUserInfo(new PasswordlessEnabledUser(userInfo.getPassphrase()));
-            session.connect();
             return session;
         } catch (JSchException e) {
             String msg = ExecutionFailedException.userFriendlyCause(e.getMessage(), hostInfo.getHostname(), userInfo);
             throw new ExecutionFailedException(msg, e);
         }
+    }
+
+    private Session getSession() throws JSchException {
+        if (session != null) {
+            if (! session.isConnected()) {
+                session.connect();
+            }
+            return session;
+        }
+        newSession();
+        if (session != null) {
+            session.connect();
+        }
+        return session;
     }
 
     private String constructCommand(String cmd, String dir, EnvVariable... envs) {
@@ -232,7 +257,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
         try {
             channel = (ChannelExec) getSession().openChannel("exec");
             String cmdToUse = constructCommand(cmd, dir, envs);
-            LOGGER.info("Executing the command [" + cmdToUse + "]");
+            LOGGER.info(String.format("Executing the command [%s]", cmdToUse));
             channel.setCommand(cmdToUse);
             channel.connect();
             StreamGuzzler output = new StreamGuzzler(channel.getInputStream());
@@ -252,6 +277,9 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             if (channel != null) {
                 channel.disconnect();
             }
+        }
+        if (results.hasErrors()) {
+            LOGGER.warn(String.format("Results of the command execution :%s", results.getError()));
         }
         return results;
     }

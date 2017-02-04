@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.rationaleemotions</groupId>
     <artifactId>simple-ssh</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
     <name>simple-ssh</name>
     <description>A simple way of interacting with a remote host for executing commands, scp (upload and download)
