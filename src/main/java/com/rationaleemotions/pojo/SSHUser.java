@@ -16,6 +16,7 @@ public class SSHUser {
     private File sshFolder;
     private File privateKey;
     private String passphrase;
+    private boolean useAgentIdentities = false;
 
     private SSHUser() {
         //We have a builder to construct this object. So hide the constructor.
@@ -55,6 +56,13 @@ public class SSHUser {
 
     public String getPassphrase() {
         return passphrase;
+    }
+
+    /**
+     * @return - Whether to use identities available via ssh-agent or pageant.exe
+     */
+    public boolean isUseAgentIdentities() {
+        return useAgentIdentities;
     }
 
     /**
@@ -112,6 +120,16 @@ public class SSHUser {
          */
         public Builder usingPassphrase(String passphrase) {
             this.user.passphrase = passphrase;
+            return this;
+        }
+
+        /**
+         * @param useAgentIdentities - <b>true</b> or <b>false</b>. Enable/Disable the ability to use
+         * credentials available via ssh-agent or pageant.exe. Disabled by default.
+         * @return
+         */
+        public Builder usingAgentIdentities(boolean useAgentIdentities) {
+            this.user.useAgentIdentities = useAgentIdentities;
             return this;
         }
 

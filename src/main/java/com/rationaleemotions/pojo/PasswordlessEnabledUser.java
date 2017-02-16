@@ -16,6 +16,7 @@ public class PasswordlessEnabledUser implements UserInfo {
     public PasswordlessEnabledUser(String passphrase) {
         this.passphrase = passphrase;
     }
+
     @Override
     public String getPassphrase() {
         return passphrase;

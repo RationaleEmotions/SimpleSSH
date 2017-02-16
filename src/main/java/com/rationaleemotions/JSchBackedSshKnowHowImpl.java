@@ -1,9 +1,10 @@
 package com.rationaleemotions;
 
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
+import com.jcraft.jsch.*;
+import com.jcraft.jsch.agentproxy.AgentProxyException;
+import com.jcraft.jsch.agentproxy.Connector;
+import com.jcraft.jsch.agentproxy.ConnectorFactory;
+import com.jcraft.jsch.agentproxy.RemoteIdentityRepository;
 import com.rationaleemotions.pojo.*;
 import com.rationaleemotions.utils.Preconditions;
 import com.rationaleemotions.utils.StreamGuzzler;
@@ -206,18 +207,32 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     private Session newSession() throws JSchException {
         JSch jSch = new JSch();
         try {
+            jSch.setConfig("PreferredAuthentications", "publickey");
+
             if (hostInfo.isDoHostKeyChecks()) {
                 jSch.setKnownHosts(userInfo.sshFolderLocation() + File.separator + "known_hosts");
             } else {
                 jSch.setHostKeyRepository(new FakeHostKeyRepository());
             }
+
+            if (userInfo.isUseAgentIdentities()) {
+                Connector connector = ConnectorFactory.getDefault().createConnector();
+                if (connector != null) {
+                    IdentityRepository identityRepository = new RemoteIdentityRepository(connector);
+                    jSch.setIdentityRepository(identityRepository);
+                }
+            }
+
+            // add private key to the IdentityRepository. If using agent identities, this will add the private
+            // key to the agent, if it is not already present.
             jSch.addIdentity(userInfo.privateKeyLocation().getAbsolutePath());
+
             session = jSch.getSession(userInfo.getUserName(), hostInfo.getHostname(), hostInfo.getPort());
             Long timeout = TimeUnit.SECONDS.toMillis(hostInfo.getTimeoutSeconds());
             session.setTimeout(timeout.intValue());
             session.setUserInfo(new PasswordlessEnabledUser(userInfo.getPassphrase()));
             return session;
-        } catch (JSchException e) {
+        } catch (JSchException | AgentProxyException e) {
             String msg = ExecutionFailedException.userFriendlyCause(e.getMessage(), hostInfo.getHostname(), userInfo);
             throw new ExecutionFailedException(msg, e);
         }

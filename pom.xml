@@ -60,6 +60,17 @@
             <version>2.1</version>
         </dependency>
 
+        <!-- support for ssh-agent and pageant.exe -->
+        <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch.agentproxy.connector-factory</artifactId>
+            <version>0.0.9</version>
+        </dependency>
+        <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch.agentproxy.jsch</artifactId>
+            <version>0.0.9</version>
+        </dependency>
 
         <!--All the test scoped dependencies are found below -->
         <!--TestNG is required because its our test runner -->
@@ -76,8 +87,7 @@
             <version>1.3.0</version>
             <scope>test</scope>
         </dependency>
-
-    </dependencies>
+   </dependencies>
     <build>
         <plugins>
             <plugin>
