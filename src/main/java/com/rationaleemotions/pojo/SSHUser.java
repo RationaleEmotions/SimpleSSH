@@ -2,6 +2,7 @@ package com.rationaleemotions.pojo;
 
 import com.rationaleemotions.utils.Preconditions;
 
+import com.rationaleemotions.utils.Strings;
 import java.io.File;
 
 
@@ -13,6 +14,7 @@ public class SSHUser {
     private static final String USER_HOME = "user.home";
     private static final String SSH = ".ssh";
     private String userName;
+    private String password;
     private File sshFolder;
     private File privateKey;
     private String passphrase;
@@ -43,6 +45,13 @@ public class SSHUser {
      */
     public String getUserName() {
         return userName;
+    }
+
+    /**
+     * @return - The password for the current user.
+     */
+    public String getPassword() {
+        return password;
     }
 
     /**
@@ -100,6 +109,14 @@ public class SSHUser {
         }
 
         /**
+         * @param password - The password to be used for ssh.
+         */
+        public Builder withPasswordAs(String password) {
+            this.user.password = password;
+            return this;
+        }
+
+        /**
          * @param sshFolder - The location of the <b>.ssh</b> folder.
          */
         public Builder withSshFolder(File sshFolder) {
@@ -140,8 +157,12 @@ public class SSHUser {
             if (user.sshFolder == null) {
                 user.sshFolder = locateSshFolderFolder(user.userName);
             }
-            if (user.privateKey == null) {
+            if (Strings.isNullOrEmpty(user.password) && user.privateKey == null) {
                 user.privateKey = constructLocationFrom(user.sshFolder);
+            }
+
+            if (Strings.isNullOrEmpty(user.password) && user.privateKey == null) {
+                throw new IllegalStateException("Please provide either the password or the private key for authentication");
             }
             return this.user;
         }
@@ -176,7 +197,5 @@ public class SSHUser {
                 "No private keys [id_dsa/id_rsa] found in [" + home.getAbsolutePath() + "]");
         }
     }
-
-
 
 }

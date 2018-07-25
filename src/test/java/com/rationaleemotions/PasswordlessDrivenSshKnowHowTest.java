@@ -3,11 +3,11 @@ package com.rationaleemotions;
 import com.rationaleemotions.pojo.EnvVariable;
 import com.rationaleemotions.pojo.ExecResults;
 import com.rationaleemotions.pojo.SSHUser;
-import com.rationaleemotions.pojo.Shells;
 import com.rationaleemotions.server.FakeCommandFactory;
 import com.rationaleemotions.server.LocalServer;
+import org.apache.sshd.server.auth.pubkey.AcceptAllPublickeyAuthenticator;
+import org.apache.sshd.server.auth.pubkey.PublickeyAuthenticator;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.BufferedReader;
@@ -15,39 +15,27 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class SshKnowHowTest {
-    private static final String CMD = "whoami";
+public class PasswordlessDrivenSshKnowHowTest extends AbstractSshKnowHowTest {
+
     private static final String MYDIRECTORY = "mydirectory";
     private static final String RESOURCES_FOLDER = "src" + File.separator + "test" + File.separator + "resources"
         + File.separator + "artifacts" + File.separator;
-    private SshKnowHow ssh;
 
-    @BeforeClass
-    public void beforeClass() throws IOException {
-
-        LocalServer server = new LocalServer();
-        server.startServer();
-        ExecutionBuilder builder = new ExecutionBuilder();
-
-        SSHUser user = new SSHUser.Builder().withSshFolder(new File("src/test/resources/.ssh")).build();
-        ssh = builder.connectTo(LocalServer.LOCALHOST).includeHostKeyChecks(false).onPort(server.port)
-            .usingUserInfo(user).build();
+    @Override
+    public PublickeyAuthenticator getPublickeyAuthenticator() {
+        return AcceptAllPublickeyAuthenticator.INSTANCE;
     }
 
-    @Test
-    public void testHappyFlow() {
-        ExecResults results = ssh.executeCommand(CMD);
-        String exp = expectedString(CMD, null, Shells.BASH);
-        Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
-        Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
-        Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
+    @Override
+    public SSHUser getSSHUser() {
+        return new SSHUser.Builder().withSshFolder(new File("src/test/resources/.ssh")).build();
     }
 
     @Test
     public void testErrorFlow() {
         String cmd = FakeCommandFactory.FAILURE + CMD;
-        ExecResults results = ssh.executeCommand(cmd);
-        String exp = expectedString(cmd, null, Shells.BASH);
+        ExecResults results = getSsh().executeCommand(cmd);
+        String exp = expectedString(cmd, null);
         Assert.assertEquals(results.getError().size(), 1, "Validating the command error size.");
         Assert.assertEquals(results.getError().get(0), exp, "Validating the command error.");
         Assert.assertEquals(results.getReturnCode(), - 1, "Validating the return code.");
@@ -55,8 +43,8 @@ public class SshKnowHowTest {
 
     @Test
     public void testHappyFlowWithDirectory() {
-        ExecResults results = ssh.executeCommand(CMD, MYDIRECTORY);
-        String exp = expectedString(CMD, MYDIRECTORY, Shells.BASH);
+        ExecResults results = getSsh().executeCommand(CMD, MYDIRECTORY);
+        String exp = expectedString(CMD, MYDIRECTORY);
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
         Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
@@ -64,7 +52,7 @@ public class SshKnowHowTest {
 
     @Test
     public void testVeryLargeOutput() {
-        ExecResults results = ssh.executeCommand("cat big.txt");
+        ExecResults results = getSsh().executeCommand("cat big.txt");
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         String lastLine = "Simple-ssh hopes to be simple.";
         int size = results.getOutput().size();
@@ -76,8 +64,8 @@ public class SshKnowHowTest {
     @Test
     public void testHappyFlowWithEnvVariable() {
         EnvVariable env = new EnvVariable("foo", "bar");
-        ExecResults results = ssh.executeCommand(CMD, env);
-        String exp = expectedString(CMD, null, Shells.BASH, env);
+        ExecResults results = getSsh().executeCommand(CMD, env);
+        String exp = expectedString(CMD, null, env);
         Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
         Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
@@ -86,8 +74,8 @@ public class SshKnowHowTest {
     @Test
     public void testHappyFlowWithDirectoryAndEnvVariable() {
         EnvVariable env = new EnvVariable("foo", "bar");
-        ExecResults results = ssh.executeCommand(CMD, MYDIRECTORY, env);
-        String exp = expectedString(CMD, MYDIRECTORY, Shells.BASH, env);
+        ExecResults results = getSsh().executeCommand(CMD, MYDIRECTORY, env);
+        String exp = expectedString(CMD, MYDIRECTORY, env);
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
         Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
@@ -98,8 +86,8 @@ public class SshKnowHowTest {
         EnvVariable[] env = {new EnvVariable("foo", "bar"),
             new EnvVariable("name", "mryutu")
         };
-        ExecResults results = ssh.executeCommand(CMD, MYDIRECTORY, env);
-        String exp = expectedString(CMD, MYDIRECTORY, Shells.BASH, env);
+        ExecResults results = getSsh().executeCommand(CMD, MYDIRECTORY, env);
+        String exp = expectedString(CMD, MYDIRECTORY, env);
         Assert.assertEquals(results.getOutput().size(), 1, "Validating the command output size.");
         Assert.assertEquals(results.getOutput().get(0), exp, "Validating the command output.");
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
@@ -112,7 +100,7 @@ public class SshKnowHowTest {
         File[] files = new File[]
             {new File(RESOURCES_FOLDER + fileName1),
                 new File(RESOURCES_FOLDER + fileName2)};
-        ExecResults reply = ssh.uploadFile("~/target/destination/", files);
+        ExecResults reply = getSsh().uploadFile("~/target/destination/", files);
         Assert.assertEquals(reply.getReturnCode(), 0, "Validating the return code.");
         for (File file : files) {
             File actual = new File(LocalServer.TARGET + file.getName());
@@ -131,7 +119,7 @@ public class SshKnowHowTest {
             "~/" + RESOURCES_FOLDER + fileName1,
             "~/" + RESOURCES_FOLDER + fileName2
         };
-        ExecResults result = ssh.downloadFile(dir, remoteFiles);
+        ExecResults result = getSsh().downloadFile(dir, remoteFiles);
         Assert.assertEquals(result.getReturnCode(), 0);
         for (String remoteFile : remoteFiles) {
             String fileName = remoteFile.substring(remoteFile.lastIndexOf("/") + 1);
@@ -146,7 +134,7 @@ public class SshKnowHowTest {
     @Test
     public void testUploadDirectory() {
         ExecResults results =
-            ssh.uploadDirectory(new File("src/test/resources/upload"), "~/target/");
+            getSsh().uploadDirectory(new File("src/test/resources/upload"), "~/target/");
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         File uploadedDir = new File(LocalServer.HOME + File.separator + "target" + File.separator + "upload");
         Assert.assertTrue(uploadedDir.exists(), "Validating the existence of uploaded artifact");
@@ -158,7 +146,7 @@ public class SshKnowHowTest {
 
     @Test
     public void testDownloadDirectory() {
-        ExecResults results = ssh.downloadDirectory(new File(LocalServer.TARGET), "~/src/test/resources/download");
+        ExecResults results = getSsh().downloadDirectory(new File(LocalServer.TARGET), "~/src/test/resources/download");
         Assert.assertEquals(results.getReturnCode(), 0, "Validating the return code.");
         File downloadedDir = new File(LocalServer.TARGET + File.separator + "download");
         Assert.assertTrue(downloadedDir.exists(), "Validating the existence of downloaded artifact");
@@ -178,18 +166,6 @@ public class SshKnowHowTest {
         return builder.toString();
     }
 
-    private String expectedString(String cmd, String dir, Shells shell, EnvVariable... envs) {
-        StringBuilder builder = new StringBuilder();
-        if (dir != null) {
-            builder.append("cd ").append(dir).append("; ");
-        }
-        if (envs != null) {
-            for (EnvVariable env : envs) {
-                builder.append(env.prettyPrintedForShell(shell)).append("; ");
-            }
-        }
-        builder.append(cmd).append(";");
-        return builder.toString();
-    }
+
 
 }

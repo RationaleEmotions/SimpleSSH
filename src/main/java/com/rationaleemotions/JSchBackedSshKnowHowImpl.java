@@ -8,6 +8,7 @@ import com.jcraft.jsch.agentproxy.RemoteIdentityRepository;
 import com.rationaleemotions.pojo.*;
 import com.rationaleemotions.utils.Preconditions;
 import com.rationaleemotions.utils.StreamGuzzler;
+import com.rationaleemotions.utils.Strings;
 import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
@@ -194,7 +195,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     @Override
     public void enableTunnellingTo(SSHHost tunnelHost) { // Refer http://stackoverflow.com/a/28852678
         try {
-            newSession();
+            createNewSession();
             session.setPortForwardingL(tunnelHost.getPort(), tunnelHost.getHostname(), this.hostInfo.getPort());
             session.connect();
             //Refer http://epaul.github.io/jsch-documentation/javadoc/com/jcraft/jsch/Session.html#openChannel-java.lang.String-
@@ -204,12 +205,16 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
         }
     }
 
-    private Session newSession() throws JSchException {
+    private void createNewSession() {
         JSch jSch = new JSch();
         try {
-            jSch.setConfig("PreferredAuthentications", "publickey");
+            String method = "publickey";
+            if (Strings.isNotNullAndNotEmpty(userInfo.getPassword())) {
+                method = "password";
+            }
+            JSch.setConfig("PreferredAuthentications", method);
 
-            if (hostInfo.isDoHostKeyChecks()) {
+            if (hostInfo.doHostKeyChecks()) {
                 jSch.setKnownHosts(userInfo.sshFolderLocation() + File.separator + "known_hosts");
             } else {
                 jSch.setHostKeyRepository(new FakeHostKeyRepository());
@@ -223,15 +228,21 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
                 }
             }
 
-            // add private key to the IdentityRepository. If using agent identities, this will add the private
-            // key to the agent, if it is not already present.
-            jSch.addIdentity(userInfo.privateKeyLocation().getAbsolutePath());
+            if (userInfo.privateKeyLocation() != null) {
+                // add private key to the IdentityRepository. If using agent identities, this will add the private
+                // key to the agent, if it is not already present.
+                jSch.addIdentity(userInfo.privateKeyLocation().getAbsolutePath());
+            }
 
             session = jSch.getSession(userInfo.getUserName(), hostInfo.getHostname(), hostInfo.getPort());
+            UserInfo info = InteractiveUser.createPasswordlessUser(userInfo.getPassphrase());
+            if (method.equalsIgnoreCase("password")) {
+                session.setPassword(userInfo.getPassword());
+                info = InteractiveUser.createPasswordDrivenUser(userInfo.getPassword());
+            }
             Long timeout = TimeUnit.SECONDS.toMillis(hostInfo.getTimeoutSeconds());
             session.setTimeout(timeout.intValue());
-            session.setUserInfo(new PasswordlessEnabledUser(userInfo.getPassphrase()));
-            return session;
+            session.setUserInfo(info);
         } catch (JSchException | AgentProxyException e) {
             String msg = ExecutionFailedException.userFriendlyCause(e.getMessage(), hostInfo.getHostname(), userInfo);
             throw new ExecutionFailedException(msg, e);
@@ -245,7 +256,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             }
             return session;
         }
-        newSession();
+        createNewSession();
         if (session != null) {
             session.connect();
         }
@@ -312,7 +323,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
     private String fixRemoteLocation(String remoteLocation) {
         String home = getHomeDirectory();
         String newLocation = remoteLocation.replaceFirst("~/", home + "/");
-        return newLocation.replaceFirst("$HOME", home + "/");
+        return newLocation.replaceFirst("\\$HOME", home + "/");
     }
 
     private FileStatOutput identify(String remoteLocation) {

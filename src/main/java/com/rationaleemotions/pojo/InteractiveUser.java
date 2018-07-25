@@ -10,11 +10,20 @@ import com.jcraft.jsch.UserInfo;
  * on how to setup passwordless access
  * to a remote host.
  */
-public class PasswordlessEnabledUser implements UserInfo {
+public class InteractiveUser implements UserInfo {
     private String passphrase;
+    private String password;
 
-    public PasswordlessEnabledUser(String passphrase) {
+    private InteractiveUser() {
+        //We have factory methods. Defeat instantiation
+    }
+
+    private void setPassphrase(String passphrase) {
         this.passphrase = passphrase;
+    }
+
+    private void setPassword(String password) {
+        this.password = password;
     }
 
     @Override
@@ -24,12 +33,12 @@ public class PasswordlessEnabledUser implements UserInfo {
 
     @Override
     public String getPassword() {
-        return null;
+        return password;
     }
 
     @Override
     public boolean promptPassword(String message) {
-        return false;
+        return password != null;
     }
 
     @Override
@@ -45,5 +54,17 @@ public class PasswordlessEnabledUser implements UserInfo {
     @Override
     public void showMessage(String message) {
         //No Op implementation
+    }
+
+    public static UserInfo createPasswordlessUser(String passphrase) {
+        InteractiveUser user = new InteractiveUser();
+        user.setPassphrase(passphrase);
+        return user;
+    }
+
+    public static UserInfo createPasswordDrivenUser(String password) {
+        InteractiveUser user = new InteractiveUser();
+        user.setPassword(password);
+        return user;
     }
 }

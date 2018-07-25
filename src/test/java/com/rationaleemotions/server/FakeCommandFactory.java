@@ -67,13 +67,13 @@ public class FakeCommandFactory implements CommandFactory {
         }
 
         @Override
-        public void start(Environment env) throws IOException {
+        public void start(Environment env) {
             this.thread = new Thread(this, "simple-ssh");
             this.thread.start();
         }
 
         @Override
-        public void destroy() throws Exception {
+        public void destroy() {
             this.thread.interrupt();
         }
 

@@ -3,7 +3,8 @@ package com.rationaleemotions.server;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.SshServer;
-import org.apache.sshd.server.auth.pubkey.AcceptAllPublickeyAuthenticator;
+import org.apache.sshd.server.auth.password.PasswordAuthenticator;
+import org.apache.sshd.server.auth.pubkey.PublickeyAuthenticator;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.scp.ScpCommandFactory;
 import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
@@ -15,9 +16,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 
-/**
- *
- */
 public class LocalServer {
     interface Marker {
     }
@@ -28,16 +26,32 @@ public class LocalServer {
     public static final String TARGET = HOME + File.separator + "target" + File.separator
         + "destination" + File.separator;
     public int port;
+    private SshServer sshd;
+    private PasswordAuthenticator passwordAuthenticator;
+    private PublickeyAuthenticator publickeyAuthenticator;
+
+    public void setPasswordAuthenticator(PasswordAuthenticator passwordAuthenticator) {
+        this.passwordAuthenticator = passwordAuthenticator;
+    }
+
+    public void setPublickeyAuthenticator(PublickeyAuthenticator publickeyAuthenticator) {
+        this.publickeyAuthenticator = publickeyAuthenticator;
+    }
 
     static {
         new File(TARGET).mkdirs();
     }
 
     public void startServer() throws IOException {
-        SshServer sshd = SshServer.setUpDefaultServer();
+        sshd = SshServer.setUpDefaultServer();
         port = getPort();
         sshd.setPort(port);
-        sshd.setPublickeyAuthenticator(AcceptAllPublickeyAuthenticator.INSTANCE);
+        if (this.passwordAuthenticator != null) {
+            sshd.setPasswordAuthenticator(this.passwordAuthenticator);
+        }
+        if (this.publickeyAuthenticator != null) {
+            sshd.setPublickeyAuthenticator(this.publickeyAuthenticator);
+        }
         SimpleGeneratorHostKeyProvider provider = new SimpleGeneratorHostKeyProvider();
         sshd.setKeyPairProvider(provider);
         SftpSubsystemFactory.Builder builder = new SftpSubsystemFactory.Builder();
@@ -55,8 +69,11 @@ public class LocalServer {
         ScpCommandFactory factory = new ScpCommandFactory();
         factory.setDelegateCommandFactory(new FakeCommandFactory());
         sshd.setCommandFactory(factory);
-        Runtime.getRuntime().addShutdownHook(new Thread(new Close(sshd)));
         sshd.start();
+    }
+
+    public void stopServer() throws IOException {
+        sshd.close();
     }
 
     private int getPort() throws IOException {

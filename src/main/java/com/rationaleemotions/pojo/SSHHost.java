@@ -25,7 +25,7 @@ public class SSHHost {
         this.port = port;
     }
 
-    public boolean isDoHostKeyChecks() {
+    public boolean doHostKeyChecks() {
         return doHostKeyChecks;
     }
 
