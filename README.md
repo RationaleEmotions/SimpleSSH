@@ -6,7 +6,7 @@
 * Run a command against a Remote UNIX Host.
 * Upload/Download files/folders from/to a Remote UNIX Host.
 
-**Simple SSH** works on passwordless authentication (i.e., connecting to a remote host without being prompted for a password.). So one of the pre-requisites for using this library is that a passwordless setup needs to have been completed against a remote host before interacting with it.
+**Simple SSH** works on password based and passwordless authentication (i.e., connecting to a remote host without being prompted for a password.). So either a passwordless setup needs to have been completed against a remote host before interacting with it or you would need to have the credentials available.
 
 In order to learn how to setup passwordless access to a remote host, please refer [Here](http://www.linuxproblem.org/art_9.html)
 
@@ -14,7 +14,6 @@ In order to learn how to setup passwordless access to a remote host, please refe
 
 **Simple SSH** requires that you use : 
 * **JDK 8**.
-* Have setup passwordless access to a remote host. 
 
 ## How to use.
 
@@ -25,7 +24,7 @@ consume it, you merely need to add the following as a dependency in your pom fil
 <dependency>
     <groupId>com.rationaleemotions</groupId>
     <artifactId>simple-ssh</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
@@ -67,6 +66,15 @@ SshKnowHow ssh = new ExecutionBuilder()
     .connectTo("myUnixBox")
     .includeHostKeyChecks(false)
     .usingUserInfo(sshUser)
+    .build();
+```
+
+Incase you would like to work with the password for a user, here's how the sample code would look like:
+
+```java
+SSHUser sshUser = new SSHUser.Builder()
+    .forUser("service_account")
+    .withPasswordAs("my_password")
     .build();
 ```
 
