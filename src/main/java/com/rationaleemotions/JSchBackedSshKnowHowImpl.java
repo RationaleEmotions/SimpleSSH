@@ -140,7 +140,7 @@ class JSchBackedSshKnowHowImpl implements SshKnowHow {
             for (String remoteFile : remoteFiles) {
                 workers.add(new ScpDownloadFileWorker(getSession(), localLocation, fixRemoteLocation(remoteFile)));
             }
-            int poolSize = Math.max(MAX_SIZE, remoteFiles.length);
+            int poolSize = Math.min(MAX_SIZE, remoteFiles.length);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Total number of worker threads to be created :" + poolSize);
             }
